@@ -1,0 +1,371 @@
+<html>
+  <head>
+    <title>Hello React</title>
+    <script src="lib/underscore-min.js"></script>
+    <script src="lib/react-0.12.2.js"></script>
+    <script src="lib/JSXTransformer-0.12.2.js"></script>
+    <script src="lib/jquery-1.10.0.min.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" >
+    <link href="bootstrap/css/orig.bootstrap.min.css" rel="stylesheet" >
+    <link href="style.css" rel="stylesheet" >
+  </head>
+  <body>
+    <div id="content" class="container">
+      content goes here!
+    </div>
+    <script type="text/jsx">
+
+ 
+
+
+    var Conditions = React.createClass({
+
+        getDefaultProps : function(){
+          return {conditionsData: {temp_c:"??"}, forecastData:{}};
+        },
+        render: function() {
+           console.log('How to know to load new data url?');
+
+           //construct current conditions data
+           var currentData={};
+            var raincorrected='0mm';
+            if(this.props.conditionsData.precip_today_metric!='--') { raincorrected= this.props.conditionsData.precip_today_metric + 'mm';}
+
+             currentData={
+                "day"         : "Now",
+                "icon"        : this.props.conditionsData.icon_url,
+                "conditions"  : this.props.conditionsData.weather,
+                "temp"        : this.props.conditionsData.temp_c+String.fromCharCode(176)+'C',
+                "rain"        : raincorrected ,
+                "wind"        : this.props.conditionsData.wind_gust_mph + 'mph from ' + this.props.conditionsData.wind_dir,
+            };
+
+            //construct forecast data
+            var forecast=[];
+         
+            if(this.props.forecastData.simpleforecast) {
+              _.each(this.props.forecastData.simpleforecast.forecastday,function(e, index, list) {
+                  forecast[index]= {
+                    "day"         : e.date.weekday,
+                    "icon"        : e.icon_url,
+                    "conditions"  : e.conditions,
+                    "temp"        : e.low.celsius +' - ' +e.high.celsius +String.fromCharCode(176)+'C',
+                    "rain"        : e.qpf_allday.mm + 'mm' ,
+                    "wind"        : e.avewind.mph + 'mph from ' + e.avewind.dir,
+
+                  };
+              });
+            }
+              
+            //generate each days forecast render
+            var fdata = forecast.map(function (day) {
+              return (
+                <WeatherDay weatherData={day} />
+                );
+            });
+                  
+         return (
+              <div>
+                <WeatherPanel title="Current conditions">
+                  <WeatherDay weatherData={currentData} />
+                </WeatherPanel>
+                <WeatherPanel title="Forecast">{fdata}</WeatherPanel>
+              </div>
+            );
+          }
+    });
+
+
+      // Simple container for weather reports
+      var WeatherPanel = React.createClass({
+        render: function() {
+          return (
+            <div className="row">
+              <div className="col-xs-12 col-md-5">
+                <div className="panel panel-info">
+                  <div className="panel-heading">
+                    <h3 className="panel-title">{this.props.title}</h3>
+                  </div>
+                  <div>
+                    <div>{this.props.children}</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          );
+        }
+      });
+
+
+    //weather report day (row)
+     var WeatherDay = React.createClass({
+      render: function() {
+        var weatherData=this.props.weatherData;
+        return (
+            <div className="panel-body" >
+             <div className="row">
+              <h4 className="col-xs-4 text-center">{weatherData.day}</h4>
+              </div>
+             <div className="row">
+                <div className="col-xs-4">
+                  <div className="center-block">
+                    <img className="center-block" width="50" height="50" src={weatherData.icon} alt={weatherData.conditions} />
+                    <p className="text-center">{weatherData.conditions}</p>
+                  </div>
+                </div>
+
+                <div className="col-xs-8">
+                  <div className="row">
+                    <WeatherMicroDetail icon="thermometer" value={weatherData.temp} />
+                    <WeatherMicroDetail icon="rain" value={weatherData.rain} />
+                  </div>                   
+
+                  <div className="row voffset2">
+                     <WeatherMicroDetail wide={true} icon="wind" value={weatherData.wind} />
+                  </div>
+
+                </div>
+              </div>
+            </div>
+          );
+        }
+      });
+
+
+      //For mini wetaher data, 2 col generally
+      var WeatherMicroDetail = React.createClass({
+        render: function() {
+          var colSize='col-xs-4';
+
+          //double width
+          if (this.props.wide) {
+            colSize='col-xs-8';
+          }
+
+          return (
+            <div>
+              <div className="col-xs-1">
+                <img src={'images/'+this.props.icon+'.png'} width="20" height="20" alt={this.props.icon} />
+              </div>              
+              <div className={colSize}>
+                {this.props.value}
+              </div>
+            </div>
+          );
+        }
+      });
+
+      //Container for form
+      var FormPanel = React.createClass({
+        render: function() {
+          return (
+            <div className="row">
+              <div className="col-xs-12 col-md-5">
+                <div className="panel panel-default">
+                  <div className="panel-heading">
+                    <h3 className="panel-title">Settings</h3>
+                  </div>                  
+                  <div className="panel-body" >{this.props.children}</div>
+                </div>
+              </div>
+            </div>
+          );
+        }
+      });
+
+    //Settings form
+     var SettingsForm = React.createClass({
+      getInitialState: function() {
+        return {
+          pwsid : this.props.pwsid,
+          apikey : this.props.apikey
+        };
+      },
+      handleSubmit: function(e) {
+        e.preventDefault();
+        var apikey = this.refs.apikey.getDOMNode().value.trim();
+        var pwsid = this.refs.pwsid.getDOMNode().value.trim();
+
+        //need a value for both
+        if (!apikey || !pwsid) {
+          return;
+        }
+
+        //pass to parent handler
+        this.props.handleSettingsSubmit({pwsid: pwsid, apikey: apikey});
+        
+        //set form values
+        this.refs.pwsid.getDOMNode().value = pwsid;
+        this.refs.apikey.getDOMNode().value = apikey;
+        
+      },
+      render: function() {
+
+        return (
+          <form className="settingsForm block" onSubmit={this.handleSubmit} >
+            <div className="row">
+            <p className="col-xs-12">
+              Enter your wunderground.com API key and weather station ID or location here. These details are stored only on your browser.
+            </p>
+            </div>
+            <div className="row" >
+                <div className="col-xs-4">API Key:</div>
+                <input className="col" type="text" placeholder="from wunderground.com" ref="apikey" defaultValue={this.state.apikey}/>
+            </div>
+            <div className="row" >
+              <div className="col-xs-4">PWS ID:</div>
+              <input className="col"  type="text" placeholder="pws:XXXXX" ref="pwsid" defaultValue={this.state.pwsid}/>  
+            </div>
+            <div className="row" >
+              <div className="col-xs-12">
+              <input type="submit" value="Save settings"  className="btn btn-primary btn-sm"/>  
+              </div>
+            </div>
+          </form>
+        );
+      }
+    });
+
+    //show/hide settings form button
+    var ShowSettingsButton = React.createClass({
+        handleClick: function() {
+            this.props.handleClick();
+        },
+        render: function() {
+          return(
+            <div>
+              <button  onClick={this.handleClick} className="btn btn-primary btn-sm">{this.props.caption}</button>
+            </div>
+          );
+          
+        }
+    });
+
+    var Page = React.createClass({
+      getInitialState: function() {
+
+        //load settings from local storage
+        var data=false;
+        if(typeof(Storage)!=='undefined') {
+          
+          if(localStorage['pwssettings']) {
+            data=JSON.parse(localStorage['pwssettings']);
+          }
+
+          if(!data) {
+            var defaultSettings={pwsid : "", apikey : ""};
+            localStorage['pwssettings']=JSON.stringify(defaultSettings);
+            data=defaultSettings;
+          }
+        
+        } else {
+          alert('Sorry, your device doesnt appear to support local storage');
+        }
+
+
+        var startData={};
+        if(data) {
+            startData= {
+              showSettings: false,
+              pwsid : data.pwsid,
+              apikey : data.apikey,         
+              conditionsURL: "http://api.wunderground.com/api/"+data.apikey+"/conditions/q/"+data.pwsid+".json",
+              forecastURL: "http://api.wunderground.com/api/"+data.apikey+"/forecast/q/"+data.pwsid+".json",
+              forecastData: {},
+              conditionsData: {}
+            
+            /*conditionsURL: "sample-wu.json",
+            forecastURL: "sample-wu-fc.json"
+            */
+          };
+        }
+
+        return startData;
+      },
+      componentDidMount: function() {
+          this.loadDataFromServer(this.state);
+          //setInterval(this.loadDataFromServer, this.props.pollInterval);
+      },
+      handleSettingsToggle: function(e) {
+            this.setState({showSettings : !this.state.showSettings});
+      },
+      handleSettingsSubmit: function(settings) {
+        this.loadDataFromServer({
+            showSettings : false,
+            pwsid : settings.pwsid,
+            apikey : settings.apikey,
+            conditionsURL: "http://api.wunderground.com/api/"+settings.apikey+"/conditions/q/"+settings.pwsid+".json",
+            forecastURL: "http://api.wunderground.com/api/"+settings.apikey+"/forecast/q/"+settings.pwsid+".json",
+            forecastData: {},
+            conditionsData: {}
+          
+        });
+        //store settings in local storage
+        if(typeof(Storage)!=='undefined') {
+          localStorage['pwssettings']=JSON.stringify({pwsid:settings.pwsid, apikey: settings.apikey});
+        }    
+      },
+      loadDataFromServer: function(config) {
+
+          //load data from wunderground.com urls
+          $.ajax({
+            url: config.conditionsURL,
+            dataType: 'jsonp',
+            jsonpCallback: 'conditionscb',
+            success: function(data) {
+              this.setState(_.extend(config,{conditionsData: data.current_observation}));
+            }.bind(this),
+            error: function(xhr, status, err) {
+              console.error(config.conditionsURL, status, err.toString());
+            }.bind(this)
+          });
+
+          $.ajax({
+            url: config.forecastURL,
+            dataType: 'jsonp',
+            jsonpCallback: 'forecastcb',
+            success: function(data) {
+              this.setState(_.extend(config, {forecastData: data.forecast}));
+            }.bind(this),
+            error: function(xhr, status, err) {
+              console.error(config.conditionsURL, status, err.toString());
+            }.bind(this)
+          });
+
+          
+        },
+
+      render: function() { 
+        //display settings for or not
+        var settingsFormRender;
+        if(this.state.showSettings) {
+          settingsFormRender=<div>
+             <FormPanel>
+                <SettingsForm pwsid={this.state.pwsid} apikey={this.state.apikey} handleSettingsSubmit={this.handleSettingsSubmit}/>
+                 <ShowSettingsButton caption="Hide Settings" handleClick={this.handleSettingsToggle} />
+                </FormPanel>
+              </div>;
+        } else {
+          settingsFormRender=<div><ShowSettingsButton caption="Show settings" handleClick={this.handleSettingsToggle} /></div>;
+        }
+
+
+        return (
+          <div>
+            <Conditions conditionsData={this.state.conditionsData} forecastData={this.state.forecastData} />
+            {settingsFormRender}
+          </div>
+        );
+      }
+    });
+
+
+      React.render(
+        <Page  />,
+        document.getElementById('content')
+      );
+
+    </script>
+    <script src="bootstrap/js/bootstrap.js"> </script>
+  </body>
+</html>
